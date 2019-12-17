@@ -1,3 +1,5 @@
+# Workshop Hands-on - Deploy OCP 4.2 on vSphere
+
 ### Troubleshooting tips
 
 To monitor the install progress:

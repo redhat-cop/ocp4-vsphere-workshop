@@ -1,3 +1,5 @@
+# Workshop Hands-on - Deploy OCP 4.2 on vSphere
+
 ### Post deployment configuration
 
 Some steps is needed after cluster is up.

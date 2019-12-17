@@ -1,3 +1,5 @@
+# Workshop Hands-on - Deploy OCP 4.2 on vSphere
+
 ### Import OVA on vSphere
 
 Access the vCenter web ui:
