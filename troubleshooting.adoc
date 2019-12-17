@@ -1,0 +1,195 @@
+
+To monitor the install progress:
+
+----
+openshift-install --dir=/root/ocp wait-for bootstrap-complete --log-level debug
+openshift-install --dir=/root/ocp wait-for install-complete --log-level debug
+----
+
+Example:
+
+----
+[root@bastion ~]# openshift-install --dir=/root/ocp wait-for bootstrap-complete --log-level debug
+DEBUG OpenShift Installer v4.2.1
+DEBUG Built from commit e349157f325dba2d06666987603da39965be5319
+INFO Waiting up to 30m0s for the Kubernetes API at https://api.ocp41.rhbr-labs.com:6443...
+INFO API v1.14.6+868bc38 up
+INFO Waiting up to 30m0s for bootstrapping to complete...
+DEBUG Bootstrap status: complete
+INFO It is now safe to remove the bootstrap resources
+[root@bastion ~]# openshift-install --dir=/root/ocp wait-for install-complete --log-level debug
+DEBUG OpenShift Installer v4.2.1
+DEBUG Built from commit e349157f325dba2d06666987603da39965be5319
+INFO Waiting up to 30m0s for the cluster at https://api.ocp41.rhbr-labs.com:6443 to initialize...
+DEBUG Still waiting for the cluster to initialize: Working towards 4.2.2: 96% complete, waiting on authentication, console, image-registry, ingress, marketplace, monitoring, openshift-samples
+DEBUG Still waiting for the cluster to initialize: Working towards 4.2.2: 97% complete, waiting on authentication, console, image-registry, monitoring, openshift-samples
+----
+ 
+
+To access the bootstrap machine:
+----
+ssh -i <ssh-key-used-during-installation> core@<bootstrapserver>
+----
+
+Example:
+
+----
+ssh -i ~/.ssh/id_rsa core@bootstrap-0
+----
+ 
+
+To access the bootstrap logs (on bootstrap machine):
+
+----
+journalctl -b -f -u bootkube.service
+----
+
+Example:
+
+----
+#### When the bootstrap takes too much time, it is useful the check the bootstrap logs in order to see if
+#### your etcd was installed successfully. Below is an example:
+
+[core@bootstrap-0 ~]$ journalctl -b -f -u bootkube.service
+-- Logs begin at Mon 2019-11-04 19:32:54 UTC. --
+Nov 04 20:15:50 bootstrap-0.ocp41.rhbr-labs.com bootkube.sh[1391]: https://etcd-1.ocp41.rhbr-labs.com:2379 is unhealthy: failed to connect: dial tcp 10.0.0.21:2379: connect: no route to host
+Nov 04 20:15:50 bootstrap-0.ocp41.rhbr-labs.com bootkube.sh[1391]: https://etcd-2.ocp41.rhbr-labs.com:2379 is unhealthy: failed to connect: dial tcp 10.0.0.22:2379: connect: no route to host
+Nov 04 20:15:50 bootstrap-0.ocp41.rhbr-labs.com bootkube.sh[1391]: https://etcd-0.ocp41.rhbr-labs.com:2379 is unhealthy: failed to connect: context deadline exceeded
+Nov 04 20:15:50 bootstrap-0.ocp41.rhbr-labs.com bootkube.sh[1391]: Error: unhealthy cluster
+Nov 04 20:15:50 bootstrap-0.ocp41.rhbr-labs.com bootkube.sh[1391]: etcdctl failed. Retrying in 5 seconds...
+Nov 04 20:25:56 bootstrap-0.ocp41.rhbr-labs.com bootkube.sh[1391]: https://etcd-0.ocp41.rhbr-labs.com:2379 is unhealthy: failed to connect: context deadline exceeded
+Nov 04 20:25:56 bootstrap-0.ocp41.rhbr-labs.com bootkube.sh[1391]: https://etcd-1.ocp41.rhbr-labs.com:2379 is unhealthy: failed to connect: dial tcp 10.0.0.21:2379: connect: no route to host
+Nov 04 20:25:56 bootstrap-0.ocp41.rhbr-labs.com bootkube.sh[1391]: https://etcd-2.ocp41.rhbr-labs.com:2379 is unhealthy: failed to connect: dial tcp 10.0.0.22:2379: connect: connection refused
+Nov 04 20:25:56 bootstrap-0.ocp41.rhbr-labs.com bootkube.sh[1391]: Error: unhealthy cluster
+Nov 04 20:25:57 bootstrap-0.ocp41.rhbr-labs.com bootkube.sh[1391]: etcdctl failed. Retrying in 5 seconds...
+Nov 04 20:32:24 bootstrap-0.ocp41.rhbr-labs.com bootkube.sh[1391]: https://etcd-0.ocp41.rhbr-labs.com:2379 is healthy: successfully committed proposal: took = 59.215123ms
+----
+ 
+
+To access a master server:
+
+----
+ssh -i ~/.ssh/id_rsa core@master-0
+----
+
+[NOTE]
+====
+SSH to the servers is not recommended for IPI servers - your server will be annotated and it can become tainted.
+==== 
+
+To access logs in the master server:
+----
+ssh -i ~/.ssh/id_rsa core@master-0
+sudo -i
+crictl ps # take note of the container id
+crictl logs <id>
+----
+
+Example:
+----
+[root@bastion ~]# ssh core@master-0.ocp41.rhbr-labs.com
+Red Hat Enterprise Linux CoreOS 42.80.20191022.0
+WARNING: Direct SSH access to machines is not recommended.
+
+---
+Last login: Thu Nov 7 13:10:53 2019 from 10.0.0.10
+[core@master-0 ~]$ sudo -i
+[root@master-0 ~]# crictl ps
+CONTAINER ID IMAGE CREATED STATE NAME ATTEMPT POD ID
+(...)
+16a88077135bc 15d11895e67779a458c2d2ab981865b9fc413653dd00a200bab2e74f77c1dc6a 32 minutes ago Running etcd-member 2 7ee9bcc8865a6
+a55b7fd0a4a16 e6adfb4b3938560cb0216a1616aec6269ffb2ae7e77b745a9961e0cb1120ba48 32 minutes ago Running kube-controller-manager-cert-syncer-11 2 27cc075a403c7
+cac672bbc457d cc480f7d86b3c53906ce61203bf118801fd78f945553f2b10c4d70ed7e1219c3 32 minutes ago Running kube-controller-manager-11 108 27cc075a403c7
+
+[root@master-0 ~]# crictl logs 16a88077135bc
+2019-11-07 13:16:38.558131 W | etcdserver: read-only range request "key:\"/kubernetes.io/config.openshift.io/infrastructures\" range_end:\"/kubernetes.io/config.openshift.io/infrastructuret\" count_only:true " with result "range_response_count:0 size:8" took too long (5.441458563s) to execute
+2019-11-07 13:16:38.558198 W | etcdserver: read-only range request "key:\"/kubernetes.io/deployments\" range_end:\"/kubernetes.io/deploymentt\" count_only:true " with result "range_response_count:0 size:8" took too long (1.759998564s) to execute
+2019-11-07 13:16:38.558363 W | etcdserver: read-only range request "key:\"/kubernetes.io/priorityclasses\" range_end:\"/kubernetes.io/priorityclasset\" count_only:true " with result "range_response_count:0 size:8" took too long (5.564951088s) to execute
+2019-11-07 13:16:38.558517 W | etcdserver: read-only range request "key:\"/kubernetes.io/leases\" range_end:\"/kubernetes.io/leaset\" count_only:true " with result "range_response_count:0 size:8" took too long (3.173732609s) to execute
+(...)
+----
+ 
+
+To check the API certificate (use this to check if the certificate is not expired):
+
+----
+echo | openssl s_client -connect api-int.ocp41.rhbr-labs.com:6443 | openssl x509 -noout -text
+----
+
+Example:
+
+----
+[root@bastion ~]# echo | openssl s_client -connect api-int.ocp41.rhbr-labs.com:6443 | openssl x509 -noout -text
+depth=1 OU = openshift, CN = kube-apiserver-lb-signer
+verify error:num=19:self signed certificate in certificate chain
+DONE
+Certificate:
+Data:
+Version: 3 (0x2)
+Serial Number: 7670043859767829723 (0x6a717840b920a4db)
+Signature Algorithm: sha256WithRSAEncryption
+Issuer: OU = openshift, CN = kube-apiserver-lb-signer
+Validity
+Not Before: Nov 7 13:24:42 2019 GMT
+Not After : Nov 8 13:24:48 2019 GMT
+Subject: O = kube-master, CN = system:kube-apiserver
+Subject Public Key Info:
+Public Key Algorithm: rsaEncryption
+RSA Public-Key: (2048 bit)
+Modulus:
+00:c3:56:e2:a3:38:cb:d4:d3:1b:26:7a:b3:68:57:
+c2:75:73:10:0b:a3:b0:69:25:b0:74:a8:9c:88:e3:
+c1:23:3b:51:c2:90:8e:85:a7:ec:b9:79:eb:a0:1b:
+04:03:d1:5d:3c:2d:a9:95:8e:7c:ef:6f:f9:39:85:
+36:d2:43:09:8c:5a:c9:15:c4:4c:a8:70:64:98:9f:
+23:b5:a0:ad:63:59:b0:52:69:2f:53:99:19:a4:22:
+93:fb:ae:0c:e3:43:8d:9c:85:79:fe:6b:22:87:8f:
+19:a0:47:07:59:a8:2c:bc:66:b2:17:d3:2f:d0:5f:
+51:68:03:10:08:8e:f0:1b:d4:99:07:61:e9:05:40:
+fe:f8:69:d9:e8:88:c1:d0:e1:fe:16:9a:5e:2c:1b:
+eb:53:61:a9:80:cb:e4:f5:a7:0e:6c:19:90:45:b5:
+00:5b:b8:1f:42:7f:cf:85:d1:f3:df:17:fb:01:c0:
+e5:de:4d:1d:0c:ae:65:a9:ef:b2:cd:2a:c5:a0:b3:
+f6:8a:83:e9:fb:3c:82:ef:67:c6:06:26:30:7f:ef:
+fc:b5:8e:98:e1:d3:c1:98:64:3c:e0:0b:84:24:34:
+62:68:5a:5f:35:78:7e:1e:d1:22:3a:50:52:9b:a0:
+33:29:a3:63:14:9f:f9:a2:44:d6:84:8f:b4:12:24:
+cb:97
+Exponent: 65537 (0x10001)
+X509v3 extensions:
+X509v3 Key Usage: critical
+Digital Signature, Key Encipherment
+X509v3 Extended Key Usage:
+TLS Web Server Authentication
+X509v3 Basic Constraints: critical
+CA:FALSE
+X509v3 Subject Key Identifier:
+F4:32:4B:D4:D5:EA:81:1C:D2:49:66:E2:A2:9F:7E:6E:BF:35:A9:31
+X509v3 Authority Key Identifier:
+keyid:F4:32:4B:D4:D5:EA:81:1C:D2:49:66:E2:A2:9F:7E:6E:BF:35:A9:31
+
+X509v3 Subject Alternative Name:
+DNS:api-int.ocp41.rhbr-labs.com
+Signature Algorithm: sha256WithRSAEncryption
+66:b1:f1:ac:3d:5d:93:ea:c2:89:5c:6e:c8:e3:d5:6c:0b:e3:
+7f:b7:bb:27:80:af:9c:13:79:1f:24:7d:6e:73:1d:69:fa:f7:
+00:d0:01:73:97:d5:7e:e3:43:e3:02:f1:64:af:b9:90:87:2e:
+5c:51:b4:8c:74:9a:cc:9a:fe:39:0e:52:ef:b1:dc:67:1e:27:
+dd:ed:1a:3c:d7:7e:d8:73:6b:ec:5f:20:8f:4b:fb:fa:d2:2f:
+34:83:42:72:a6:ca:fb:ad:c5:06:5b:24:4d:c1:04:9f:aa:b5:
+96:ca:34:02:d2:1e:76:08:c7:7e:87:dc:e4:9d:85:bc:7a:a5:
+3b:c4:2f:d2:bf:c8:bb:97:21:77:b0:94:fb:1a:cf:2b:88:1d:
+cb:01:6d:86:32:51:06:d0:eb:39:93:2d:a4:53:4c:9a:52:df:
+a9:7b:cc:e6:4f:34:bf:1d:4b:5c:b7:9f:0f:7a:0a:53:52:53:
+3e:14:6c:cf:ef:82:dc:e7:7c:1a:ba:f5:8c:45:bb:9c:77:34:
+09:6b:81:5c:42:ca:1f:aa:9b:ea:4f:2d:35:32:f6:95:25:89:
+85:6c:98:73:3f:56:c3:dc:fa:d4:f9:7a:ed:9e:e2:28:4f:ae:
+f0:08:92:98:36:86:23:b8:50:38:c7:67:da:df:8a:26:7f:f0:
+e1:80:6e:f7
+
+----
+
+[NOTE]
+====
+*Never reuse the openshift install dir!* In case a reinstallation is needed, delete the folder before generating ignition files again. The certificates that are generated by the installer are saved in hidden files inside this folder - if you only delete the ignition files and run the openshift-install again, it will use the same old certificates, that are already expired and you will have troubles!!! Also, you should keep your system up and running until the certificates are rotated and it can take up to 24 hours, so don't stop your environment until there. The command above helps you to check the certificate expiration and see if the certificate has been rotated already or not.
+====

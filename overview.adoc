@@ -1,0 +1,14 @@
+
+# Workshop Hands-on - Deploy OCP 4.2 on vSphere
+
+### Overview
+
+The OpenShift installation on vSphere is comprised of the following:
+
+1. Prepare pre-requisites
+2. Pre-requisites validation
+3. Ignition files creation
+4. Deploy on vSphere
+5. Post deployment configuration
+
+In this lab you will inspect the pre-requisites in detail and deploy a small cluster on vSphere from scratch.

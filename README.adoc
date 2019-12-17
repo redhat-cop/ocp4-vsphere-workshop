@@ -1,0 +1,23 @@
+
+# OpenShift 4.2 on vSphere
+
+### Modules:
+
+link:overview.adoc[Deployment Overview]
+
+link:prerequisites.adoc[Prerequisites Preparation]
+
+link:ignition.adoc[Generating Install Files]
+
+link:vsphere-import-ova.adoc[Import OVA on vSphere]
+
+link:deploy.adoc[Deploy Cluster on vSphere]
+
+link:post-deployment.adoc[Post deployment configuration]
+
+link:troubleshooting.adoc[Troubleshooting tips]
+
+link:common-further-resources.adoc[Further Resources]
+
+link:common-workshop-links.adoc[Workshop Links]
+

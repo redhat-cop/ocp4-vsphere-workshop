@@ -1,0 +1,76 @@
+
+Some steps is needed after cluster is up.
+
+#### Check the certificates:
+
+----
+[root@infra-services ocp]# oc get csr
+NAME        AGE     REQUESTOR                                                                   CONDITION
+csr-2zjlx   33m     system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Approved,Issued
+csr-7f8kq   4m42s   system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Pending
+csr-8cqn7   19m     system:node:worker-0.ocp.rhbr-labs.com                                      Pending
+csr-8ks7p   4m46s   system:node:worker-0.ocp.rhbr-labs.com                                      Pending
+csr-f4j47   23m     system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Approved,Issued
+csr-rthw9   4m44s   system:node:worker-1.ocp.rhbr-labs.com                                      Pending
+csr-sppgx   38m     system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Approved,Issued
+csr-zmtj4   19m     system:node:worker-1.ocp.rhbr-labs.com   
+----
+
+Approve the certificates with "oc adm certificate approve" command.
+
+----
+[root@infra-services ocp]# oc get csr -ojson | jq -r '.items[] | select(.status == {} ) | .metadata.name' | xargs oc adm certificate approve
+certificatesigningrequest.certificates.k8s.io/csr-7f8kq approved
+certificatesigningrequest.certificates.k8s.io/csr-8cqn7 approved
+certificatesigningrequest.certificates.k8s.io/csr-8ks7p approved
+certificatesigningrequest.certificates.k8s.io/csr-rthw9 approved
+certificatesigningrequest.certificates.k8s.io/csr-zmtj4 approved
+----
+
+#### Set registry storage storage:
+
+----
+oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"storage":{"emptyDir":{}}}}'
+----
+
+[NOTE]
+====
+In production environments set the registry storage with some supported persistent storage such OCS or NFS.
+====
+
+#### Set ingress configuration
+
+----
+oc get -n openshift-ingress-operator ingresscontrollers/default -o jsonpath='{$.spec.replicas}'
+2
+oc patch -n openshift-ingress-operator ingresscontroller/default --patch '{"spec":{"replicas": 1}}' --type=merge
+ingresscontroller.operator.openshift.io/default patched
+----
+
+#### Config authentication with httpd
+
+----
+sudo yum install httpd-tools
+htpasswd -c -B -b users.htpasswd admin 'r3dh4t1!'
+oc create secret generic htpass-secret --from-file=htpasswd=users.htpasswd -n openshift-config
+
+cat <<EOF > htpasswd-conf.yml
+apiVersion: config.openshift.io/v1
+kind: OAuth
+metadata:
+  name: cluster
+spec:
+  identityProviders:
+  - name: my_htpasswd_provider 
+    mappingMethod: claim 
+    type: HTPasswd
+    htpasswd:
+      fileData:
+        name: htpass-secret 
+EOF
+
+oc apply -f htpasswd-conf.yml
+oc adm policy add-cluster-role-to-user cluster-admin admin
+
+oc delete secrets kubeadmin -n kube-system
+----

@@ -1,0 +1,236 @@
+The following services are pre-requisites for OpenShift 4.2 installation on vSphere (https://docs.openshift.com/container-platform/4.2/installing/installing_vsphere/installing-vsphere.html#installation-infrastructure-user-infra_installing-vsphere[see more on the official docs for OpenShift]) :
+
+- DHCP
+- DNS
+- Load Balancer
+- Webserver (to host bootstrap ignition file)
+- vSphere 6.7U2
+
+### Inspect pre-requisites
+
+All pre-requisites already has been prepared for you, however it is important to understand well these configurations. 
+
+Access the infra-services node and inspect each pre-requisites below.
+
+*_DNS Settings:_*
+----
+[user0@infra-services ~]$ sudo cat /etc/named.conf
+acl internal_nets { 10.0.0.0/16; };
+options {
+listen-on port 53 { 127.0.0.1; 10.0.0.5; };
+listen-on-v6 port 53 { none; };
+directory "/var/named";
+dump-file "/var/named/data/cache_dump.db";
+statistics-file "/var/named/data/named_stats.txt";
+memstatistics-file "/var/named/data/named_mem_stats.txt";
+secroots-file "/var/named/data/named.secroots";
+(...)
+zone "ocp1.rhbr-labs.com" {
+type master;
+file "ocp1.rhbr-labs.com.zone";
+allow-query { any; };
+allow-transfer { none; };
+allow-update { none; };
+};
+zone "1.0.10.in-addr.arpa" {
+type master;
+file "1.0.10.in-addr.arpa.zone";
+allow-query { any; };
+allow-transfer { none; };
+allow-update { none; };
+};
+
+[user0@infra-services ~]# sudo cat /var/named/ocp1.rhbr-labs.com.zone 
+$TTL    604800
+@       IN      SOA     infra-services.ocp1.rhbr-labs.com. admin.ocp1.rhbr-labs.com. (
+            3       ; Serial
+            604800     ; Refresh
+            86400     ; Retry
+            2419200     ; Expire
+            604800 )   ; Negative Cache TTL
+;
+; name servers - NS records
+    IN      NS      infra-services.ocp1.rhbr-labs.com.
+
+; name servers - A records
+infra-services IN A 10.0.0.5
+bootstrap-0 IN A 10.0.1.100
+master-0 IN A 10.0.1.101
+worker-0 IN A 10.0.1.102
+api IN A 10.0.0.5
+api-int IN A 10.0.0.5
+apps IN A 10.0.0.5
+*.apps IN A 10.0.0.5
+etcd-0 IN A 10.0.1.101
+; The SRV records ...note the trailing dot at the end.
+_etcd-server-ssl._tcp IN SRV 0 10 2380 etcd-0.ocp1.rhbr-labs.com.
+
+[user0@infra-services ~]# sudo cat /var/named/1.0.10.in-addr.arpa.zone 
+$TTL    604800
+@       IN      SOA     infra-services.rhbr-labs.com. admin.rhbr-labs.com. (
+                        3         ; Serial
+                        604800         ; Refresh
+                        86400         ; Retry
+                        2419200         ; Expire
+                        604800 )       ; Negative Cache TTL
+; name servers
+    IN      NS      infra-services.rhbr-labs.com.
+
+; PTR Records
+100 IN PTR bootstrap-0.ocp1.rhbr-labs.com.
+101 IN PTR master-0.ocp1.rhbr-labs.com.
+102 IN PTR worker-0.ocp1.rhbr-labs.com.
+----
+
+*_DHCP:_*
+
+----
+[user0@infra-services ~]# sudo cat /etc/dhcp/dhcpd.conf
+default-lease-time 900;
+max-lease-time 7200;
+subnet 10.0.0.0 netmask 255.255.0.0 {
+option routers 10.0.0.2;
+option subnet-mask 255.255.0.0;
+option domain-name-servers 10.0.0.5;
+next-server 10.0.0.5;
+}
+
+#### CLUSTER OCP
+host bootstrap-0 {
+hardware ethernet 00:50:56:01:00:01;
+fixed-address 10.0.0.100;
+option host-name "bootstrap-0.ocp.rhbr-labs.com";
+}
+host master-0 {
+hardware ethernet 00:50:56:01:00:02;
+fixed-address 10.0.0.101;
+option host-name "master-0.ocp.rhbr-labs.com";
+}
+(...)
+----
+
+*_HAProxy Load Balancer:_*
+
+----
+[root@infra-services ~]# sudo cat /etc/haproxy/haproxy.cfg
+global
+log 127.0.0.1 local2
+chroot /var/lib/haproxy
+pidfile /var/run/haproxy.pid
+maxconn 4000
+user haproxy
+group haproxy
+daemon
+stats socket /var/lib/haproxy/stats
+ssl-default-bind-ciphers PROFILE=SYSTEM
+ssl-default-server-ciphers PROFILE=SYSTEM
+
+defaults
+mode http
+log global
+option httplog
+option dontlognull
+option http-server-close
+option forwardfor except 127.0.0.0/8
+option redispatch
+retries 3
+(...)
+#### BEGIN CLUSTER0
+
+frontend ocp4-kubernetes-api-server
+mode tcp
+option tcplog
+bind api.ocp.rhbr-labs.com:6443
+default_backend ocp4-kubernetes-api-server
+
+frontend ocp4-kubernetes-api-int-server
+mode tcp
+option tcplog
+bind api-int.ocp.rhbr-labs.com:6443
+default_backend ocp4-kubernetes-api-server
+(...)
+
+backend ocp4-kubernetes-api-server
+mode tcp
+balance source
+server boostrap-0-0 bootstrap-0.ocp.rhbr-labs.com:6443 check
+server master-0-0 master-0.ocp.rhbr-labs.com:6443 check
+server master-1-0 master-1.ocp.rhbr-labs.com:6443 check
+server master-2-0 master-2.ocp.rhbr-labs.com:6443 check
+
+backend ocp4-machine-config-server
+mode tcp
+balance source
+server bootstrap-0-0 bootstrap-0.ocp.rhbr-labs.com:22623 check
+server master-0-0 master-0.ocp.rhbr-labs.com:22623 check
+server master-1-0 master-1.ocp.rhbr-labs.com:22623 check
+server master-2-0 master-2.ocp.rhbr-labs.com:22623 check
+----
+
+*_Apache Webserver:_*
+----
+[root@infra-services ~]# cat /etc/httpd/conf/httpd.conf 
+#
+# This is the main Apache HTTP server configuration file.  It contains the
+# configuration directives that give the server its instructions.
+# See <URL:http://httpd.apache.org/docs/2.4/> for detailed information.
+# In particular, see 
+
+(...)
+#Listen 12.34.56.78:80
+Listen 8080
+----
+
+[NOTE]
+====
+Apache webserver was set to use port 8080 to avoid conflicts with haproxy that is running also in this same server. In a production environment you will use a dedicated Load Balancer so it is not required to change the Apache port.
+====
+
+
+
+### Pre-requisites validation
+
+Check if the A, PTR and SRV records of the DNS are correctly set:
+
+*Checking A records:*
+----
+export GUID="<GUID>"
+
+[user0@infra-services ~]$ dig bootstrap-0.ocp$GUID.rhbr-labs.com +short
+10.0.0.100
+[user0@infra-services ~]$ dig master-0.ocp$GUID.rhbr-labs.com +short
+10.0.0.101
+[user0@infra-services ~]$ dig worker-0.ocp$GUID.rhbr-labs.com +short
+10.0.0.102
+----
+
+*Checking PTR records:*
+----
+[user0@infra-services ~]$ dig -x 10.0.0.100 +short
+bootstrap-0.ocp.rhbr-labs.com.
+[user0@infra-services ~]$ dig -x 10.0.0.101 +short
+master-0.ocp.rhbr-labs.com.
+[user0@infra-services ~]$ dig -x 10.0.0.102 +short
+worker-0.ocp.rhbr-labs.com.
+----
+
+*Checking API records:*
+----
+[user0@infra-services ~]$ dig api.ocp$GUID.rhbr-labs.com +short
+10.0.0.5
+[user0@infra-services ~]$ dig api-int.ocp$GUID.rhbr-labs.com +short
+10.0.0.5
+----
+
+*Checking APPs wildcard record:*
+----
+[user0@infra-services ~]$ dig *.apps.ocp$GUID.rhbr-labs.com +short
+10.0.0.5
+----
+
+*Checking SRV records:*
+----
+[user0@infra-services ~]$ dig _etcd-server-ssl._tcp.ocp$GUID.rhbr-labs.com SRV +short
+0 10 2380 etcd-0.ocp.rhbr-labs.com.
+----
+

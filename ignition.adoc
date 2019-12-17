@@ -1,0 +1,151 @@
+Create ssh keys
+
+----
+ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa
+----
+
+Download install bin
+
+----
+mkdir ~/bin
+
+OCP4_BASEURL=https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest
+LATEST_VERSION=$(curl -s ${OCP4_BASEURL}/release.txt | grep 'Version: ' | awk '{print $2}')
+curl -s ${OCP4_BASEURL}/openshift-client-linux-$LATEST_VERSION.tar.gz | tar -xzf - -C ~/bin oc kubectl
+curl -s ${OCP4_BASEURL}/openshift-install-linux-$LATEST_VERSION.tar.gz | tar -xzf - -C ~/bin/ openshift-install
+----
+
+Generate Pull Secret at https://cloud.redhat.com/openshift/install/vsphere/user-provisioned. Store it in ~/ocp4_pull_secret
+
+
+Create install file:
+
+[NOTE]
+====
+Use the parameters given by the instructor!
+====
+
+----
+export GUID="<GUID>"
+mkdir ~/ocp$GUID
+cd ~/ocp$GUID
+
+export DOMAIN=rhbr-labs.com # <1>
+export CLUSTERID=ocp$GUID # <2>
+export VCENTER_SERVER=vcsa.rhbr-labs.com # <3>
+export VCENTER_USER="administrator@vsphere.local" # <4>
+export VCENTER_PASS='<admin_password>' # <4>
+export VCENTER_DC='rhbr-labs-dc' # <5>
+export VCENTER_DS='<datastore-id>' # <6>
+export PULL_SECRET=$(cat ~/ocp4_pull_secret) # <7>
+export OCP_SSH_KEY=$(cat ~/.ssh/id_rsa.pub) # <8>
+
+cat <<EOF > install-config.yaml
+apiVersion: v1
+baseDomain: ${DOMAIN}
+compute:
+- hyperthreading: Enabled
+  name: worker
+  replicas: 1 
+controlPlane:
+  hyperthreading: Enabled
+  name: master
+  replicas: 1
+metadata:
+  name: ${CLUSTERID}
+networking:
+  clusterNetworks:
+  - cidr: 10.254.0.0/16
+    hostPrefix: 24
+  networkType: OpenShiftSDN
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  vsphere:
+    vcenter: ${VCENTER_SERVER}
+    username: ${VCENTER_USER}
+    password: ${VCENTER_PASS}
+    datacenter: ${VCENTER_DC}
+    defaultDatastore: ${VCENTER_DS}
+pullSecret: '${PULL_SECRET}'
+sshKey: '${OCP_SSH_KEY}'
+EOF
+----
+
+<1> The base domain of the cluster. All DNS records must be sub-domains of this base and include the cluster name.
+<2> The cluster name that you specified in your DNS records.
+<3> The fully-qualified host name or IP address of the vCenter server.
+<4> vCenter credentials. This user must have at least the roles and privileges that are required for [dynamic persistent volume provisioning](https://vmware.github.io/vsphere-storage-for-kubernetes/documentation/vcp-roles.html) in vSphere.
+<5> The vSphere Datacenter.
+<6> Default Datastore to use.
+<7> Pull secret obtained in cloud.redhat.com.
+<8> The public portion of the default SSH key for the core user in Red Hat Enterprise Linux CoreOS (RHCOS).
+
+
+Before next step, create a backup of install file (it will be automatically deleted in the next step):
+----
+cp install-config.yaml ../install-config.yaml.bkp
+----
+
+Create openshift-install manifests:
+
+----
+openshift-install create manifests
+----
+
+Manifests are yaml files that contains a lot of configuration that will be applied in the new cluster. Inspect the manifests files:
+----
+ls manifests/
+cat manifests/* | more
+----
+
+Let's change you of the manifests to ensure that masters are no schedulable:
+----
+sed -i 's/mastersSchedulable: true/mastersSchedulable: false/g' manifests/cluster-scheduler-02-config.yml
+----
+
+Create ignition configs:
+----
+openshift-install create ignition-configs
+
+cat <<EOF > append-bootstrap.ign
+{
+  "ignition": {
+    "config": {
+      "append": [
+        {
+          "source": "http://10.0.0.5:8080/ocp$GUID/ignition/bootstrap.ign",
+          "verification": {}
+        }
+      ]
+    },
+    "timeouts": {},
+    "version": "2.1.0"
+  },
+  "networkd": {},
+  "passwd": {},
+  "storage": {},
+  "systemd": {}
+}
+EOF
+----
+
+
+Upload your bootstrap.ign to web server:
+----
+sudo mkdir -p /var/www/html/ocp$GUID/ignition/
+sudo cp bootstrap.ign /var/www/html/ocp$GUID/ignition/
+----
+
+Let's confirm that our webserver is hosting the bootstrap ignition file:
+----
+curl http://10.0.0.5:8080/ocp$GUID/ignition/bootstrap.ign
+----
+
+Generate files in base64:
+----
+for i in append-bootstrap master worker
+do
+base64 -w0 < $i.ign > $i.64
+done
+----
