@@ -1,3 +1,5 @@
+### Prerequisites Preparation
+
 The following services are pre-requisites for OpenShift 4.2 installation on vSphere (https://docs.openshift.com/container-platform/4.2/installing/installing_vsphere/installing-vsphere.html#installation-infrastructure-user-infra_installing-vsphere[see more on the official docs for OpenShift]) :
 
 - DHCP

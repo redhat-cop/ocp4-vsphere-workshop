@@ -1,5 +1,4 @@
-
-# OpenShift 4.2 on vSphere
+# Workshop Hands-on - Deploy OCP 4.2 on vSphere
 
 ### Modules:
 
