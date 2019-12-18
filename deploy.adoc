@@ -58,7 +58,7 @@ In *"Latency Sensitivity"* select High and click in *"Edit Configuration..."* bu
 Click in the *"ADD CONFIGURATION PARAMS"* button and add the following paramters:
 
 ----
-guestinfo.ignition.config.data=<content of bootstrap.64 file>
+guestinfo.ignition.config.data=<content of append_bootstrap.64 file>
 guestinfo.ignition.config.data.encoding=base64
 disk.EnableUUID=TRUE
 ----
