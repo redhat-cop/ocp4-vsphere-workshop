@@ -4,34 +4,8 @@ You can find all urls, hostnames, usernames and passwords that are needed during
 
 == OpenShift cluster URL
 
-Console Address: {{CONSOLE_ADDRESS}} +
-API Address: {{API_ADDRESS}} +
-
-Username: `{{ username}}` + 
-Password: `{{ USER_PASSWORD }}` +
-
-
+Console Address: https://console-openshift-console.apps.ocp$GUID.rhbr-labs.com/ +
 
 == Workshop Guides
 
-Web: http://starter-guides-{{ INFRA_PROJECT }}.{{cluster_subdomain}}
-
-
-== Web terminal
-
-Web: http://terminal-{{ INFRA_PROJECT }}.{{cluster_subdomain}}
-
-== Git Server
-
-Web: http://gogs-{{ INFRA_PROJECT }}.{{cluster_subdomain}}
-
-Username: `{{username}}` + 
-Password: `{{ USER_PASSWORD }}` + 
-
-== Nexus Maven repository
-
-Web: http://nexus-{{ INFRA_PROJECT }}.{{cluster_subdomain}}
-
-== OpenShift Ops View
-
-Web: http://ocp-ops-view-{{ INFRA_PROJECT }}.{{cluster_subdomain}}
+Web: https://github.com/giofontana/ocp4-vsphere-workshop/
