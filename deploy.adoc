@@ -91,6 +91,12 @@ image::images/18-vcenter-clone-finish.png[Clone to VM]
 |120 GB
 |Output of: cat worker.64
 
+|worker-1
+|2
+|8 GB
+|120 GB
+|Output of: cat worker.64
+
 |===
 
 *Now boot the all the VMs.*
