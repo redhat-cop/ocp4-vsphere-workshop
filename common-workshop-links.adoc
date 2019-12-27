@@ -2,10 +2,108 @@
 
 You can find all urls, hostnames, usernames and passwords that are needed during the workshop in this page. Note that the urls are also embedded inside the labs so that you don't have to go back and forth between this page and the labs.
 
-== OpenShift cluster URL
-
-Console Address: https://console-openshift-console.apps.ocp$GUID.rhbr-labs.com/ +
-
 == Workshop Guides
 
 Web: https://github.com/giofontana/ocp4-vsphere-workshop/
+
+== VCenter URL
+
+https://vcsa.rhbr-labs.com
+
+== Teams info
+
+*TEAM 1*
+----
+    ssh user1@infra-services.rhbr-labs.com
+    GUID=1
+    datastore-id=esx1-lab-ds
+    esx host=esx1.rhbr-labs.com    
+    vcenter vm folder=ocp1
+
+    MAC ADDRESS:
+    bootstrap-0 --> 00:50:56:01:01:01
+    master-0    --> 00:50:56:01:01:02
+    worker-0    --> 00:50:56:01:01:03
+
+    URL Console: https://console-openshift-console.apps.ocp1.rhbr-labs.com/
+----
+
+*TEAM 2*
+----
+    ssh user2@infra-services.rhbr-labs.com
+    GUID=2
+    datastore-id=esx2-lab-ds
+    esx host=esx2.rhbr-labs.com
+    vcenter vm folder=ocp2    
+
+    MAC ADDRESS:
+    bootstrap-0 --> 00:50:56:01:02:01
+    master-0    --> 00:50:56:01:02:02
+    worker-0    --> 00:50:56:01:02:03    
+
+    URL Console: https://console-openshift-console.apps.ocp2.rhbr-labs.com/
+----
+
+*TEAM 3*
+----
+    ssh user3@infra-services.rhbr-labs.com
+    GUID=3
+    datastore-id=esx3-lab-ds
+    esx host=esx3.rhbr-labs.com    
+    vcenter vm folder=ocp3    
+
+    MAC ADDRESS:
+    bootstrap-0 --> 00:50:56:01:03:01
+    master-0    --> 00:50:56:01:03:02
+    worker-0    --> 00:50:56:01:03:03
+
+    URL Console: https://console-openshift-console.apps.ocp3.rhbr-labs.com/    
+----
+
+*TEAM 4*
+----
+    ssh user4@infra-services.rhbr-labs.com
+    GUID=4
+    datastore-id=esx4-lab-ds
+    esx host=esx4.rhbr-labs.com    
+    vcenter vm folder=ocp4    
+
+    MAC ADDRESS:
+    bootstrap-0 --> 00:50:56:01:04:01
+    master-0    --> 00:50:56:01:04:02
+    worker-0    --> 00:50:56:01:04:03    
+
+    URL Console: https://console-openshift-console.apps.ocp4.rhbr-labs.com/    
+----
+
+*TEAM 5*
+----
+    ssh user5@infra-services.rhbr-labs.com
+    GUID=5
+    datastore-id=esx5-lab-ds
+    esx host=esx5.rhbr-labs.com    
+    vcenter vm folder=ocp5    
+
+    MAC ADDRESS:
+    bootstrap-0 --> 00:50:56:01:05:01
+    master-0    --> 00:50:56:01:05:02
+    worker-0    --> 00:50:56:01:05:03   
+
+    URL Console: https://console-openshift-console.apps.ocp5.rhbr-labs.com/
+----
+
+*TEAM 6*
+----
+    ssh user6@infra-services.rhbr-labs.com
+    GUID=6
+    datastore-id=esx6-lab-ds
+    esx host=esx6.rhbr-labs.com    
+    vcenter vm folder=ocp6    
+
+    MAC ADDRESS:
+    bootstrap-0 --> 00:50:56:01:06:01
+    master-0    --> 00:50:56:01:06:02
+    worker-0    --> 00:50:56:01:06:03   
+
+    URL Console: https://console-openshift-console.apps.ocp6.rhbr-labs.com/
+----
