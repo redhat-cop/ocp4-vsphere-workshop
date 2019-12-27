@@ -26,3 +26,5 @@ A VM named infra-services has been set up with the following services for each c
 - DNS: Infra-services is the internal DNS, providing A/PTR and SRV records for each cluster.
 - Webserver: A apache webserver is already configured in infra-services machine to host the ignition file for each cluster.
 - HAProxy: Infra-services is configured with one public ip for each cluster. HAProxy is set up to balance requisitions from each ip to the corresponding cluster.
+
+image::images/overview-workshop-vsphere-env.png[Workshop environment]
