@@ -204,6 +204,8 @@ export GUID="<GUID>"
 10.0.0.100
 [user0@infra-services ~]$ dig master-0.ocp$GUID.rhbr-labs.com +short
 10.0.0.101
+[user0@infra-services ~]$ dig etcd-0.ocp$GUID.rhbr-labs.com +short
+10.0.0.101
 [user0@infra-services ~]$ dig worker-0.ocp$GUID.rhbr-labs.com +short
 10.0.0.102
 ----
