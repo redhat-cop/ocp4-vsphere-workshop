@@ -54,7 +54,7 @@ ingresscontroller.operator.openshift.io/default patched
 
 ----
 sudo yum install httpd-tools
-htpasswd -c -B -b users.htpasswd admin 'r3dh4t1!'
+htpasswd -c -B -b users.htpasswd admin '******'
 oc create secret generic htpass-secret --from-file=htpasswd=users.htpasswd -n openshift-config
 
 cat <<EOF > htpasswd-conf.yml
