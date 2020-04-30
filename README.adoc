@@ -31,4 +31,5 @@ This is a WIP. The following items is planned to be added:
 
 * LDAP configuration
 * Setup worker for infra
+* Certificates
 ====

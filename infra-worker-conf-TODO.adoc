@@ -1,0 +1,327 @@
+
+. Label the `node-role.kubernetes.io/infra` nodes:
+
+----
+oc label node infra-0.ocp4.rhbr-labs.com node-role.kubernetes.io/infra=
+oc label node infra-1.ocp4.rhbr-labs.com node-role.kubernetes.io/infra=
+oc label node router-0.ocp4.rhbr-labs.com node-role.kubernetes.io/infra=
+oc label node router-1.ocp4.rhbr-labs.com node-role.kubernetes.io/infra=
+----
+
+. Label the router and infra nodes:
+----
+oc label node infra-0.ocp4.rhbr-labs.com role=infra
+oc label node infra-1.ocp4.rhbr-labs.com role=infra
+oc label node router-0.ocp4.rhbr-labs.com role=router
+oc label node router-1.ocp4.rhbr-labs.com role=router
+----
+
+
+. Remove the worker label
+
+----
+oc label node infra-0.ocp4.rhbr-labs.com node-role.kubernetes.io/worker- 
+oc label node infra-1.ocp4.rhbr-labs.com node-role.kubernetes.io/worker- 
+oc label node router-0.ocp4.rhbr-labs.com node-role.kubernetes.io/worker- 
+oc label node router-1.ocp4.rhbr-labs.com node-role.kubernetes.io/worker- 
+----
+
+. Create a MachineConfigPool for the infra nodes
+
+----
+cat <<EOF > infra-mcp.yaml
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfigPool
+metadata:
+  name: infra
+spec:
+  machineConfigSelector:
+    matchExpressions:
+      - {key: machineconfiguration.openshift.io/role, operator: In, values: [worker,infra]}
+  nodeSelector:
+    matchLabels:
+      node-role.kubernetes.io/infra: ""
+EOF
+
+oc create -f infra-mcp.yaml
+----
+
+. Check the status of the new MCP and wait until the infra MCP `UPDATED` column shows True, `UPDATING` and `DEGRADATED` as false.
+
+----
+oc get mcp
+NAME     CONFIG                                             UPDATED   UPDATING   DEGRADED   MACHINECOUNT   READYMACHINECOUNT   UPDATEDMACHINECOUNT   DEGRADEDMACHINECOUNT   AGE
+infra    rendered-infra-aeb3c0e6e6db49f6487a37f0e3665b00    True      False      False      4              4                   4                     0                      44m
+master   rendered-master-ad0c6159fb80bdfd9d60a9d6adc65088   True      False      False      3              3                   3                     0                      3h39m
+worker   rendered-worker-aeb3c0e6e6db49f6487a37f0e3665b00   True      False      False      3              3                   3                     0                      3h39m
+----
+
+. Taint the infra nodes:
+
+----
+oc adm taint nodes -l role=infra infra=reserved:NoSchedule infra=reserved:NoExecute
+oc adm taint nodes -l role=router router=reserved:NoSchedule router=reserved:NoExecute
+----
+
+=== Move components to the Infra Nodes
+
+==== Router
+
+oc patch ingresscontroller/default -n  openshift-ingress-operator  --type=merge -p '{"spec":{"nodePlacement": {"nodeSelector": {"matchLabels": {"node-role.kubernetes.io/infra": ""}},"tolerations": [{"effect":"NoSchedule","key": "router","value": "reserved"},{"effect":"NoExecute","key": "router","value": "reserved"}]}}}'
+
+oc patch ingresscontroller/default -n openshift-ingress-operator --type=merge -p '{"spec":{"replicas": 3}}'
+
+==== Registry
+
+oc patch config/cluster --type=merge -p '{"spec":{"nodeSelector": {"node-role.kubernetes.io/infra": ""},"tolerations": [{"effect":"NoSchedule","key": "infra","value": "reserved"},{"effect":"NoExecute","key": "infra","value": "reserved"}]}}'
+
+==== Monitoring
+
+cat <<EOF > cluster-monitoring-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |+
+    alertmanagerMain:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - key: infra
+        value: reserved
+        effect: NoSchedule
+      - key: infra
+        value: reserved
+        effect: NoExecute
+    prometheusK8s:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - key: infra
+        value: reserved
+        effect: NoSchedule
+      - key: infra
+        value: reserved
+        effect: NoExecute
+    prometheusOperator:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - key: infra
+        value: reserved
+        effect: NoSchedule
+      - key: infra
+        value: reserved
+        effect: NoExecute
+    grafana:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - key: infra
+        value: reserved
+        effect: NoSchedule
+      - key: infra
+        value: reserved
+        effect: NoExecute
+    k8sPrometheusAdapter:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - key: infra
+        value: reserved
+        effect: NoSchedule
+      - key: infra
+        value: reserved
+        effect: NoExecute
+    kubeStateMetrics:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - key: infra
+        value: reserved
+        effect: NoSchedule
+      - key: infra
+        value: reserved
+        effect: NoExecute
+    telemeterClient:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - key: infra
+        value: reserved
+        effect: NoSchedule
+      - key: infra
+        value: reserved
+        effect: NoExecute
+    openshiftStateMetrics:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - key: infra
+        value: reserved
+        effect: NoSchedule
+      - key: infra
+        value: reserved
+        effect: NoExecute
+EOF
+
+oc create -f cluster-monitoring-configmap.yaml
+
+
+
+==== Logging
+
+
+----
+oc edit ClusterLogging instance -n openshift-logging
+
+apiVersion: logging.openshift.io/v1
+kind: ClusterLogging
+metadata:
+  creationTimestamp: '2020-04-30T22:14:17Z'
+  generation: 1
+  name: instance
+  namespace: openshift-logging
+  resourceVersion: '116934'
+  selfLink: >-
+    /apis/logging.openshift.io/v1/namespaces/openshift-logging/clusterloggings/instance
+  uid: 0de1c2ac-9a47-466b-8111-c7a785233274
+spec:
+  collection:
+    logs:
+      tolerations: 
+      - key: infra
+        value: reserved
+        effect: NoSchedule
+      - key: infra
+        value: reserved
+        effect: NoExecute       
+      fluentd: {}
+      type: fluentd
+  curation:
+    curator:
+      tolerations: 
+      - key: infra
+        value: reserved
+        effect: NoSchedule
+      - key: infra
+        value: reserved
+        effect: NoExecute    
+      schedule: 30 3 * * *
+    type: curator
+  logStore:
+    elasticsearch:
+      tolerations: 
+      - key: infra
+        value: reserved
+        effect: NoSchedule
+      - key: infra
+        value: reserved
+        effect: NoExecute    
+      nodeCount: 1
+      redundancyPolicy: ZeroRedundancy
+      storage:
+        size: 100G
+        storageClassName: thin
+    type: elasticsearch
+  managementState: Managed
+  visualization:
+    kibana:
+      tolerations: 
+      - key: infra
+        value: reserved
+        effect: NoSchedule
+      - key: infra
+        value: reserved
+        effect: NoExecute    
+      replicas: 1
+    type: kibana
+status:
+  collection:
+    logs:
+      fluentdStatus:
+        daemonSet: fluentd
+        nodes:
+          fluentd-2w4pw: master-2.ocp4.rhbr-labs.com
+          fluentd-9c2g7: worker-1.ocp4.rhbr-labs.com
+          fluentd-9sl9m: worker-2.ocp4.rhbr-labs.com
+          fluentd-lfz2p: master-0.ocp4.rhbr-labs.com
+          fluentd-q9lpz: master-1.ocp4.rhbr-labs.com
+          fluentd-qd2zn: worker-0.ocp4.rhbr-labs.com
+        pods:
+          failed: []
+          notReady: []
+          ready:
+            - fluentd-2w4pw
+            - fluentd-9c2g7
+            - fluentd-9sl9m
+            - fluentd-lfz2p
+            - fluentd-q9lpz
+            - fluentd-qd2zn
+  curation:
+    curatorStatus:
+      - cronJobs: curator
+        schedules: 30 3 * * *
+        suspended: false
+  logStore:
+    elasticsearchStatus:
+      - ShardAllocationEnabled: shard allocation unknown
+        cluster:
+          numDataNodes: 0
+          initializingShards: 0
+          numNodes: 0
+          activePrimaryShards: 0
+          status: cluster health unknown
+          pendingTasks: 0
+          relocatingShards: 0
+          activeShards: 0
+          unassignedShards: 0
+        clusterName: elasticsearch
+        nodeConditions:
+          elasticsearch-cdm-vx62fk4z-1:
+            - lastTransitionTime: '2020-04-30T22:14:20Z'
+              message: >-
+                0/10 nodes are available: 2 node(s) had taints that the pod
+                didn't tolerate, 3 Insufficient cpu, 5 Insufficient memory.
+              reason: Unschedulable
+              status: 'True'
+              type: Unschedulable
+        nodeCount: 1
+        pods:
+          client:
+            failed: []
+            notReady:
+              - elasticsearch-cdm-vx62fk4z-1-5dfc97fbfc-c6gfn
+            ready: []
+          data:
+            failed: []
+            notReady:
+              - elasticsearch-cdm-vx62fk4z-1-5dfc97fbfc-c6gfn
+            ready: []
+          master:
+            failed: []
+            notReady:
+              - elasticsearch-cdm-vx62fk4z-1-5dfc97fbfc-c6gfn
+            ready: []
+  visualization:
+    kibanaStatus:
+      - deployment: kibana
+        pods:
+          failed: []
+          notReady: []
+          ready:
+            - kibana-54847866c8-ppkss
+        replicaSets:
+          - kibana-54847866c8
+          - kibana-6df7b7dcc7
+        replicas: 1
+
+
+
+==== Update DS
+
+oc patch ds machine-config-daemon -n openshift-machine-config-operator  --type=merge -p '{"spec": {"template": { "spec": {"tolerations":[{"operator":"Exists"}]}}}}'
+
+oc patch ds node-ca -n openshift-image-registry --type=merge -p '{"spec": {"template": { "spec": {"tolerations":[{"operator":"Exists"}]}}}}'
