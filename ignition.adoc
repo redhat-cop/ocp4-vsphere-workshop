@@ -136,6 +136,7 @@ Upload your bootstrap.ign to web server:
 ----
 sudo mkdir -p /var/www/html/ocp4/ignition/
 sudo cp bootstrap.ign /var/www/html/ocp4/ignition/
+sudo chmod -R 0755 /var/www/html/ocp4/
 ----
 
 Let's confirm that our webserver is hosting the bootstrap ignition file:
