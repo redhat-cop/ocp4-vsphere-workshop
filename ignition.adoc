@@ -115,7 +115,7 @@ cat <<EOF > append-bootstrap.ign
     "config": {
       "append": [
         {
-          "source": "http://10.0.0.5:8080/ocp$GUID/ignition/bootstrap.ign",
+          "source": "http://10.0.0.5:8080/ocp4/ignition/bootstrap.ign",
           "verification": {}
         }
       ]
@@ -134,13 +134,13 @@ EOF
 
 Upload your bootstrap.ign to web server:
 ----
-sudo mkdir -p /var/www/html/ocp$GUID/ignition/
-sudo cp bootstrap.ign /var/www/html/ocp$GUID/ignition/
+sudo mkdir -p /var/www/html/ocp4/ignition/
+sudo cp bootstrap.ign /var/www/html/ocp4/ignition/
 ----
 
 Let's confirm that our webserver is hosting the bootstrap ignition file:
 ----
-curl http://10.0.0.5:8080/ocp$GUID/ignition/bootstrap.ign
+curl http://10.0.0.5:8080/ocp4/ignition/bootstrap.ign
 ----
 
 Generate files in base64:
