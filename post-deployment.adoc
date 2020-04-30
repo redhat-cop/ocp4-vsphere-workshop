@@ -30,7 +30,7 @@ certificatesigningrequest.certificates.k8s.io/csr-rthw9 approved
 certificatesigningrequest.certificates.k8s.io/csr-zmtj4 approved
 ----
 
-#### Set registry storage storage:
+#### Set registry storage storage to use an ephemeral volume:
 
 ----
 oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patch '{"spec":{"storage":{"emptyDir":{}}}}'
@@ -38,7 +38,7 @@ oc patch configs.imageregistry.operator.openshift.io cluster --type merge --patc
 
 [NOTE]
 ====
-In production environments set the registry storage with some supported persistent storage such OCS or NFS.
+In production environments set the registry storage with some supported persistent storage such as OCS or NFS.
 ====
 
 #### Set ingress configuration
@@ -46,7 +46,7 @@ In production environments set the registry storage with some supported persiste
 ----
 oc get -n openshift-ingress-operator ingresscontrollers/default -o jsonpath='{$.spec.replicas}'
 2
-oc patch -n openshift-ingress-operator ingresscontroller/default --patch '{"spec":{"replicas": 1}}' --type=merge
+oc patch -n openshift-ingress-operator ingresscontroller/default --patch '{"spec":{"replicas": <NUM_OF_ROUTER_REPLICAS>}}' --type=merge
 ingresscontroller.operator.openshift.io/default patched
 ----
 
@@ -54,7 +54,7 @@ ingresscontroller.operator.openshift.io/default patched
 
 ----
 sudo yum install httpd-tools
-htpasswd -c -B -b users.htpasswd admin 'r3dh4t1!'
+htpasswd -c -B -b users.htpasswd admin 'passwd'
 oc create secret generic htpass-secret --from-file=htpasswd=users.htpasswd -n openshift-config
 
 cat <<EOF > htpasswd-conf.yml
@@ -77,3 +77,4 @@ oc adm policy add-cluster-role-to-user cluster-admin admin
 
 oc delete secrets kubeadmin -n kube-system
 ----
+

@@ -1,0 +1,174 @@
+= Workshop Hands-on - Deploy OCP 4.x UPI on vSphere
+
+=== Post deployment configuration
+
+An important step in any OpenShift cluster is to setup the persistence for the native tools that comes with the cluster. In a fresh install the following tools comes with OpenShift:
+
+* Integrated Registry
+* Monitoring (Prometheus, Alert Manager and Grafana)
+
+Besides tools above, one common component in OpenShift clusters is the *Cluster Logging* stack (ElasticSearch, FluentD and Kibana).
+
+This section explains how to setup the persistent volumes for these components.
+
+==== Integrated Registry
+
+It is recommended to have a persistent volume backed with File or Object Storage. The most common backends are:
+* OpenShift Container Storage 4.x (Using `cephfs`)
+* NFS
+* S3 (AWS)
+
+The configuration of persistence is very easy. If you have a StorageClass in place, you only need to make this SC as the default one and edit the operator's config. If there is no SC in place, you will need to create the PV manually before editing the operator's config.
+
+*With StorageClass in place:*
+
+1. If needed, disable the current default StorageClass:
+
+----
+oc patch storageclass thin -p '{"metadata": {"annotations": \
+    {"storageclass.kubernetes.io/is-default-class": "false"}}}'
+----
+
+2. Make the File Storage SC the default one (ocs-storagecluster-cephfs in this case)
+
+----
+oc patch storageclass ocs-storagecluster-cephfs -p '{"metadata": {"annotations": \
+    {"storageclass.kubernetes.io/is-default-class": "true"}}}'
+----
+
+3. Edit the `imageregistry` config operator:
+
+$ oc edit configs.imageregistry.operator.openshift.io
+
+spec:
+  managementState: Managed
+  
+  storage:
+    pvc:
+      claim:
+
+*With NO StorageClass in place:*
+[TODO] 
+
+----
+$ cat registry-nfs-volume.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: registry-nfs-share
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  nfs:
+    server: nfs.example.com
+    path: /share1
+----
+
+==== OpenShift Monitoring (Prometheus)
+
+The persistent volume is configured through the `cluster-monitoring-config` ConfigMap.
+
+1. If it is not created yet, create a new ConfigMap with named as `cluster-monitoring-config`:
+
+----
+oc -n openshift-monitoring create configmap cluster-monitoring-config
+----
+
+2. Edit the CM as stated below:
+
+----
+oc -n openshift-monitoring edit configmap cluster-monitoring-config
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |
+    prometheusK8s: # <1>
+      volumeClaimTemplate:
+       spec:
+         storageClassName: ocs-storagecluster-ceph-rbd # <2>
+         volumeMode: Filesystem
+         resources:
+           requests:
+             storage: 200Gi # <3>
+    alertmanagerMain: # <4>
+      volumeClaimTemplate:
+       spec:
+         storageClassName: ocs-storagecluster-ceph-rbd # <5>
+         volumeMode: Filesystem
+         resources:
+           requests:
+             storage: 2Gi # <6>
+----
+<1> Section related to Prometheus configs.
+<2> StorageClass name to be used to provision the Prometheus volumes.
+<3> Size of the Prometheus volume (https://docs.openshift.com/container-platform/3.11/scaling_performance/scaling_cluster_monitoring.html[reference here]).
+<4> Section related to AlertManager configs.
+<5> StorageClass name to be used to provision the Alert Manager volumes.
+<6> Size of the AlertManager volume.
+
+3. After saving changes above, wait for PVCs creation and Pods re-creation.
+
+----
+# oc get pvc
+NAME                                       STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS                  AGE
+alertmanager-main-db-alertmanager-main-0   Bound    pvc-8187d60d-f6c2-4d1d-b76f-026da512f609   2Gi        RWO            ocs-storagecluster-ceph-rbd   11s
+alertmanager-main-db-alertmanager-main-1   Bound    pvc-d70cebfa-3b9f-474a-bd82-26cf23ae16b2   2Gi        RWO            ocs-storagecluster-ceph-rbd   11s
+alertmanager-main-db-alertmanager-main-2   Bound    pvc-952e5644-2486-4412-b3fa-9522b2534e43   2Gi        RWO            ocs-storagecluster-ceph-rbd   10s
+prometheus-k8s-db-prometheus-k8s-0         Bound    pvc-a1060666-a0cb-43bb-8fb3-09b52e8e1b12   10Gi       RWO            ocs-storagecluster-ceph-rbd   7s
+prometheus-k8s-db-prometheus-k8s-1         Bound    pvc-f1ec2954-55c9-417a-940a-0374f4b772e8   10Gi       RWO            ocs-storagecluster-ceph-rbd   7s
+
+# oc get pods
+NAME                                           READY   STATUS              RESTARTS   AGE
+alertmanager-main-0                            0/3     ContainerCreating   0          5s
+alertmanager-main-1                            0/3     ContainerCreating   0          5s
+alertmanager-main-2                            0/3     ContainerCreating   0          4s
+cluster-monitoring-operator-7b898649bd-2kkdb   1/1     Running             0          5h58m
+grafana-6db95cb6f7-8t5xt                       2/2     Running             2          5h18m
+kube-state-metrics-66dfc9f94f-phsd2            3/3     Running             0          4h9m
+node-exporter-4zpvt                            2/2     Running             0          4h2m
+node-exporter-gmcbh                            2/2     Running             0          5h58m
+node-exporter-jrpcb                            2/2     Running             2          5h21m
+node-exporter-mztfx                            2/2     Running             2          5h21m
+node-exporter-rpg2r                            2/2     Running             0          5h58m
+node-exporter-xskgh                            2/2     Running             0          5h58m
+openshift-state-metrics-785dd5b54c-76cmn       3/3     Running             0          4h9m
+prometheus-adapter-5b5c597c8b-6dr9f            1/1     Running             0          4h9m
+prometheus-adapter-5b5c597c8b-vnnbg            1/1     Running             0          4h9m
+prometheus-k8s-0                               0/7     Pending             0          1s
+prometheus-k8s-1                               0/7     Pending             0          1s
+prometheus-operator-7669c96bdc-k4v6g           1/1     Running             0          3h58m
+telemeter-client-5d98668485-szl87              3/3     Running             0          4h9m
+thanos-querier-b9464d86d-hqsfq                 4/4     Running             4          5h17m
+thanos-querier-b9464d86d-mfllm                 4/4     Running             0          4h9m
+----
+
+==== Cluster Logging (EFK)
+
+If you have Logging in your cluster, you can provision a Persistent Volume to ES by editing the `ClusterLogging` instance:
+
+----
+oc edit ClusterLogging instance -n openshift-logging 
+
+spec:
+  logStore: # <1>
+    type: elasticsearch
+    elasticsearch:
+      storage:
+        storageClassName: ocs-storagecluster-ceph-rbd # <2>
+        size: 100G # <3>
+----
+<1> Section related to ElasticSearch configs
+<2> StorageClass to be used to provision the PV
+<3> Size of the ES PV
+
+[NOTE]
+====
+Keep in mind that the Logging default config has 3 ElasticSearch replicas and each one uses its own volume.
+====

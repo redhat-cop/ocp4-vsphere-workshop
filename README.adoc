@@ -14,9 +14,16 @@ link:deploy.adoc[Deploy Cluster on vSphere]
 
 link:post-deployment.adoc[Post deployment configuration]
 
-link:troubleshooting.adoc[Troubleshooting tips]
+link:logging-deployment.adoc[Cluster Logging deployment]
 
-link:common-further-resources.adoc[Further Resources]
+link:persistence-tools.adoc[Configuring persistence for OpenShift tools (Registry, Monitoring and Logging)]
+
+link:ocs-deployment.adoc[OpenShift Container Storage 4.x Deployment]
+
+link:troubleshooting.adoc[Troubleshooting tips]
 
 link:common-workshop-links.adoc[Workshop Links]
 
+TODO:
+
+* LDAP CONF

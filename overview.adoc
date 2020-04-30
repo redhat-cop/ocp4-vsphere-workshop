@@ -1,5 +1,5 @@
 
-# Workshop Hands-on - Deploy OCP 4.2 on vSphere
+# Workshop Hands-on - Deploy OCP 4.x UPI on vSphere
 
 ### Overview
 

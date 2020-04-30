@@ -1,4 +1,4 @@
-# Workshop Hands-on - Deploy OCP 4.2 on vSphere
+# Workshop Hands-on - Deploy OCP 4.x UPI on vSphere
 
 ### Generating Install Files
 
@@ -11,12 +11,10 @@ ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa
 Download install bin
 
 ----
-mkdir ~/bin
-
 OCP4_BASEURL=https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest
 LATEST_VERSION=$(curl -s ${OCP4_BASEURL}/release.txt | grep 'Version: ' | awk '{print $2}')
-curl -s ${OCP4_BASEURL}/openshift-client-linux-$LATEST_VERSION.tar.gz | tar -xzf - -C ~/bin oc kubectl
-curl -s ${OCP4_BASEURL}/openshift-install-linux-$LATEST_VERSION.tar.gz | tar -xzf - -C ~/bin/ openshift-install
+curl -s ${OCP4_BASEURL}/openshift-client-linux-$LATEST_VERSION.tar.gz | tar -xzf - -C /usr/local/bin oc kubectl
+curl -s ${OCP4_BASEURL}/openshift-install-linux-$LATEST_VERSION.tar.gz | tar -xzf - -C /usr/local/bin openshift-install
 ----
 
 Generate Pull Secret at https://cloud.redhat.com/openshift/install/vsphere/user-provisioned. Store it in ~/ocp4_pull_secret
@@ -30,17 +28,16 @@ Use the parameters given by the instructor!
 ====
 
 ----
-export GUID="<GUID>"
-mkdir ~/ocp$GUID
-cd ~/ocp$GUID
+mkdir ~/ocp4
+cd ~/ocp4
 
 export DOMAIN=rhbr-labs.com # <1>
-export CLUSTERID=ocp$GUID # <2>
+export CLUSTERID=ocp4 # <2>
 export VCENTER_SERVER=vcsa.rhbr-labs.com # <3>
-export VCENTER_USER="administrator@vsphere.local" # <4>
-export VCENTER_PASS='<admin_password>' # <4>
+export VCENTER_USER="ocp-usr@vsphere.local" # <4>
+export VCENTER_PASS='xxxxxxx' # <4>
 export VCENTER_DC='rhbr-labs-dc' # <5>
-export VCENTER_DS='<datastore-id>' # <6>
+export VCENTER_DS='ds-iscsi' # <6>
 export PULL_SECRET=$(cat ~/ocp4_pull_secret) # <7>
 export OCP_SSH_KEY=$(cat ~/.ssh/id_rsa.pub) # <8>
 
