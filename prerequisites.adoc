@@ -238,3 +238,5 @@ worker-0.ocp.rhbr-labs.com.
 0 10 2380 etcd-0.ocp.rhbr-labs.com.
 ----
 
+
+TODO: ADD VMWARE VALIDATION USING GOVC
