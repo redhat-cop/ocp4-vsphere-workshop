@@ -1,0 +1,258 @@
+
+==  MachineConfigPool, MachineSet, Taints and Tolerations approach to create Infra Nodes
+
+
+==== 1. Clone a template from the current worker machine sets
+[source]
+----
+oc get machinesets machineSetName -o yaml > machineSet-original.yaml
+----
+
+==== 2. Create machineconfigpool  
+[source]
+----
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfigPool
+metadata:
+  name: infra
+spec:                                      
+  machineConfigSelector:
+    matchExpressions:
+      - {key: machineconfiguration.openshift.io/role, operator: In, values: [worker,infra]}
+  nodeSelector:
+    matchLabels:
+      node-role.kubernetes.io/infra: ""
+----
+*  oc create -f infra-mcp.yaml
+
+==== 3. Copy cloned machineset template unto new file to make proper changes
+[source]
+----
+cp machineSet-original.yaml machineSet-infra.yaml
+----
+
+==== 4. edit the variables according docs and engineer reference files:
+  * Remove creationTimeStamp, uid, resourceVersion and selfLink
+  * Change machineset name to new one
+  * Set replicas to 0 (zero)
+  * Add label: node-role.kubernetes.io/infra: ""
+
+See machineset sample file below (machineset-ocp4-8bjtp-i-b.yaml):
+[source]
+
+----
+apiVersion: machine.openshift.io/v1beta1
+kind: MachineSet
+metadata:
+ labels:
+   machine.openshift.io/cluster-api-cluster: ocp4-8bjtp
+ name: ocp4-8bjtp-i-b
+ namespace: openshift-machine-api
+spec:
+ replicas: 1
+ selector:
+   matchLabels:
+     machine.openshift.io/cluster-api-cluster: ocp4-8bjtp
+     machine.openshift.io/cluster-api-machineset: ocp4-8bjtp-i-b
+ template:
+   metadata:
+     creationTimestamp: null
+     labels:
+       machine.openshift.io/cluster-api-cluster: ocp4-8bjtp
+       machine.openshift.io/cluster-api-machine-role: infra
+       machine.openshift.io/cluster-api-machine-type: infra
+       machine.openshift.io/cluster-api-machineset: ocp4-8bjtp-i-b
+   spec:
+     metadata:
+       creationTimestamp: null
+       labels:
+         node-role.kubernetes.io/infra: ""
+     providerSpec:
+       value:
+         apiVersion: gcpprovider.openshift.io/v1beta1
+         canIPForward: false
+         credentialsSecret:
+           name: gcp-cloud-credentials
+         deletionProtection: false
+         disks:
+         - autoDelete: true
+           boot: true
+           image: ocp4-8bjtp-rhcos-image
+           labels: null
+           sizeGb: 128
+           type: pd-ssd
+         kind: GCPMachineProviderSpec
+         machineType: n1-standard-2
+         metadata:
+           creationTimestamp: null
+         networkInterfaces:
+         - network: ocp4-8bjtp-network
+           subnetwork: ocp4-8bjtp-worker-subnet
+         projectID: gcloud-ocp4-273122
+         region: us-east1
+         serviceAccounts:
+         - email: ocp4-8bjtp-w@gcloud-ocp4-273122.iam.gserviceaccount.com
+           scopes:
+           - https://www.googleapis.com/auth/cloud-platform
+         tags:
+         - ocp4-8bjtp-worker
+         userDataSecret:
+           name: worker-user-data
+         zone: us-east1-b
+----
+
+  * Change all machine-role and machine-type to infra:
+
+[source]
+----
+  sed -i  s/node-role.kubernetes.io\/worker=/node-role.kubernetes.io\/infra=/g machineset-ocp4-8bjtp-i-b.yaml
+----
+
+
+==== 5. Create the new machineset and check under machines if it start to spawn, check under Google Cloud console the new machine creation, after Gcloud console starts the machine check under oc get nodes to see if it was properly created and brings up Ready.
+
+[source]
+----
+oc create -f machineset-ocp4-8bjtp-i-b.yaml
+----
+
+==== 6. Apply taints to the nodes (infra ones):
+
+[source]
+----
+oc adm taint nodes -l role=infra infra=reserved:NoSchedule infra=reserved:NoExecute
+----
+
+==== 7. Move the monitoring stack (openshift-monitoring) to the infra nodes using the tolerations arguments inside configmap according to the following example:
+
+[source]
+----
+ cat <<EOF > cluster-monitoring-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+ name: cluster-monitoring-config
+ namespace: openshift-monitoring
+data:
+ config.yaml: |+
+   alertmanagerMain:
+     nodeSelector:
+       node-role.kubernetes.io/infra: ""
+     tolerations:
+     - key: infra
+       value: reserved
+       effect: NoSchedule
+     - key: infra
+       value: reserved
+       effect: NoExecute
+   prometheusK8s:
+     nodeSelector:
+       node-role.kubernetes.io/infra: ""
+     tolerations:
+     - key: infra
+       value: reserved
+       effect: NoSchedule
+     - key: infra
+       value: reserved
+       effect: NoExecute
+   prometheusOperator:
+     nodeSelector:
+       node-role.kubernetes.io/infra: ""
+     tolerations:
+     - key: infra
+       value: reserved
+       effect: NoSchedule
+     - key: infra
+       value: reserved
+       effect: NoExecute
+   grafana:
+     nodeSelector:
+       node-role.kubernetes.io/infra: ""
+     tolerations:
+     - key: infra
+       value: reserved
+       effect: NoSchedule
+     - key: infra
+       value: reserved
+       effect: NoExecute
+   k8sPrometheusAdapter:
+     nodeSelector:
+       node-role.kubernetes.io/infra: ""
+     tolerations:
+     - key: infra
+       value: reserved
+       effect: NoSchedule
+     - key: infra
+       value: reserved
+       effect: NoExecute
+   kubeStateMetrics:
+     nodeSelector:
+       node-role.kubernetes.io/infra: ""
+     tolerations:
+     - key: infra
+       value: reserved
+       effect: NoSchedule
+     - key: infra
+       value: reserved
+       effect: NoExecute
+   telemeterClient:
+     nodeSelector:
+       node-role.kubernetes.io/infra: ""
+     tolerations:
+     - key: infra
+       value: reserved
+       effect: NoSchedule
+     - key: infra
+       value: reserved
+       effect: NoExecute
+   openshiftStateMetrics:
+     nodeSelector:
+       node-role.kubernetes.io/infra: ""
+     tolerations:
+     - key: infra
+       value: reserved
+       effect: NoSchedule
+     - key: infra
+       value: reserved
+       effect: NoExecute
+EOF
+ 
+oc create -f cluster-monitoring-configmap.yaml
+----
+
+==== 8. Update machine-config-daemon in order to update machine count under machines results, otherwise machine count will appear incorrectly number of machines under its type.
+[source]
+----
+oc patch ds machine-config-daemon -n openshift-machine-config-operator  --type=merge -p '{"spec": {"template": { "spec": {"tolerations":[{"operator":"Exists"}]}}}}'
+----
+
+
+==== 9. Check if machine config pool is showed properly count machines:
+[source]
+----
+oc get mcp
+NAME     CONFIG                                             UPDATED   UPDATING   DEGRADED   MACHINECOUNT   READYMACHINECOUNT   UPDATEDMACHINECOUNT   DEGRADEDMACHINECOUNT   AGE
+infra    rendered-infra-aeb3c0e6e6db49f6487a37f0e3665b00    True      False      False      4              4                   4                     0                      44m
+master   rendered-master-ad0c6159fb80bdfd9d60a9d6adc65088   True      False      False      3              3                   3                     0                      3h39m
+worker   rendered-worker-aeb3c0e6e6db49f6487a37f0e3665b00   True      False      False      3              3                   3                     0                      3h39m
+----
+
+
+==== 10. Update the cluster on the web console gui  and check if all nodes had been updated to the same version.
+
+
+IMPORTANT: RESULT: Success. The cluster is updated and only projects with correct taints and toleration are provisioned to the infra nodes. The task has been accomplished accordingly.
+
+
+
+== Reference Docs: 
+
+
+Proposed Configuration Guide for Infranodes
+https://docs.google.com/document/d/1humfDiEhkOd_xlQjjLWLEwk1bTiT3HDxUx5btq3jQMk/edit#heading=h.k653w62c472r[Proposed Configuration Guide for InfraNodes]
+
+How does machine config pool work
+https://docs.google.com/document/d/1PXsSALyVUIAQSYfQts8iQ-qJEda5uz0CBojt5IQn3QM/edit#heading=h.thskvxgb5s7e[How does machine config pool work]
+
+Infra Excerpt
+https://docs.google.com/document/d/1XyR4dJiEVF95m0BbBMbvI2NQM4OBviDUM1ycQf9MzLA/edit#heading=h.24r766r2b4or[Infra Excerpt]
